@@ -1,5 +1,5 @@
 function hodgkin_huxley
-    % Parámetros del modelo Hodgkin-Huxley
+    
     C_m = 1.0;    % Capacitancia de la membrana, uF/cm^2
     g_Na = 120.0; % Conductancia máxima de Na, mS/cm^2
     g_K = 36.0;   % Conductancia máxima de K, mS/cm^2
@@ -8,58 +8,58 @@ function hodgkin_huxley
     E_K = -77.0;  % Potencial de equilibrio de K, mV
     E_L = -54.4;  % Potencial de equilibrio de fuga, mV
 
-    % Parámetros de la simulación
+   
     t_end = 50; % Tiempo de simulación, ms
     dt = 0.01;  % Paso de tiempo, ms
     time = 0:dt:t_end; % Vector de tiempo
 
-    % Variables del modelo
+    
     V = -65; % Potencial de membrana, mV
     m = alpha_m(V) / (alpha_m(V) + beta_m(V));
     h = alpha_h(V) / (alpha_h(V) + beta_h(V));
     n = alpha_n(V) / (alpha_n(V) + beta_n(V));
 
-    % Estímulo de corriente
+    
     I_ext = zeros(size(time));
     I_ext(time >= 10 & time <= 40) = 10; % Corriente externa de 10 uA/cm^2 entre 10 ms y 40 ms
 
-    % Almacenamiento de resultados
+    
     V_trace = zeros(size(time));
     m_trace = zeros(size(time));
     h_trace = zeros(size(time));
     n_trace = zeros(size(time));
 
-    % Simulación
+   
     for i = 1:length(time)
         % Corrientes iónicas
         I_Na = g_Na * m^3 * h * (V - E_Na);
         I_K = g_K * n^4 * (V - E_K);
         I_L = g_L * (V - E_L);
 
-        % Ecuación diferencial del potencial de membrana
+        
         dVdt = (I_ext(i) - I_Na - I_K - I_L) / C_m;
 
-        % Actualización del potencial de membrana
+        
         V = V + dt * dVdt;
 
-        % Ecuaciones diferenciales de las variables de compuerta
+        
         dm = alpha_m(V) * (1 - m) - beta_m(V) * m;
         dh = alpha_h(V) * (1 - h) - beta_h(V) * h;
         dn = alpha_n(V) * (1 - n) - beta_n(V) * n;
 
-        % Actualización de las variables de compuerta
+        
         m = m + dt * dm;
         h = h + dt * dh;
         n = n + dt * dn;
 
-        % Almacenar los resultados
+        
         V_trace(i) = V;
         m_trace(i) = m;
         h_trace(i) = h;
         n_trace(i) = n;
     end
 
-    % Graficar los resultados
+    
     figure;
     subplot(2,1,1);
     plot(time, V_trace);
@@ -74,7 +74,7 @@ function hodgkin_huxley
     ylabel('I_{ext} (\muA/cm^2)');
 end
 
-% Funciones auxiliares para las tasas de transición
+
 function val = alpha_m(V)
     val = 0.1 * (V + 40) / (1 - exp(-(V + 40) / 10));
 end
