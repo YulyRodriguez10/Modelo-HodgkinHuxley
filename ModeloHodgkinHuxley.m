@@ -1,63 +1,101 @@
-% Parámetros del modelo Hodgkin-Huxley
-C_m = 1-6; % Capacitancia de la membrana (uF/cm^2)
-g_Na = 120-3; % Conductancia máxima de sodio (mS/cm^2)
-g_K = 36-3; % Conductancia máxima de potasio (mS/cm^2)
-g_L = 0.3-3; % Conductancia de fuga (mS/cm^2)
-E_Na = 50-3; % Potencial de equilibrio del sodio (mV)
-E_K = -77-3; % Potencial de equilibrio del potasio (mV)
-E_L = -54.4-3; % Potencial de equilibrio de fuga (mV)
+function hodgkin_huxley
+    % Parámetros del modelo Hodgkin-Huxley
+    C_m = 1.0;    % Capacitancia de la membrana, uF/cm^2
+    g_Na = 120.0; % Conductancia máxima de Na, mS/cm^2
+    g_K = 36.0;   % Conductancia máxima de K, mS/cm^2
+    g_L = 0.3;    % Conductancia de fuga, mS/cm^2
+    E_Na = 50.0;  % Potencial de equilibrio de Na, mV
+    E_K = -77.0;  % Potencial de equilibrio de K, mV
+    E_L = -54.4;  % Potencial de equilibrio de fuga, mV
 
-% Definición de funciones alfa y beta para los canales de sodio (Na) y potasio (K)
-alpha_n = @(V) 0.1-0.01*(V + 65) / (1 - exp(1-0.1*(V + 65)));
-beta_n = @(V) 0.125*exp((-V + 65) / 80);
-alpha_m = @(V) 2.5-0.1*(V + 65) / (1 - exp(2.5-0.1*(V + 65)));
-beta_m = @(V) 4*exp((-V + 65) / 18);
-alpha_h = @(V) 0.07*exp((V + 65)/-20);
-beta_h = @(V) 1 / (1 + exp(3-0.1*(V + 35))+1);
+    % Parámetros de la simulación
+    t_end = 50; % Tiempo de simulación, ms
+    dt = 0.01;  % Paso de tiempo, ms
+    time = 0:dt:t_end; % Vector de tiempo
 
-% Paso de integración y tiempo total de simulación
-dt = 0.01; % Paso de integración (ms)
-T = 100; % Tiempo total de simulación (ms)
-t = 0:dt:T; % Vector de tiempo
+    % Variables del modelo
+    V = -65; % Potencial de membrana, mV
+    m = alpha_m(V) / (alpha_m(V) + beta_m(V));
+    h = alpha_h(V) / (alpha_h(V) + beta_h(V));
+    n = alpha_n(V) / (alpha_n(V) + beta_n(V));
 
-% Inicialización de variables
-V = zeros(size(t)); % Potencial de membrana (mV)
-n = zeros(size(t)); % Variable de activación de potasio
-m = zeros(size(t)); % Variable de activación de sodio
-h = zeros(size(t)); % Variable de inactivación de sodio
+    % Estímulo de corriente
+    I_ext = zeros(size(time));
+    I_ext(time >= 10 & time <= 40) = 10; % Corriente externa de 10 uA/cm^2 entre 10 ms y 40 ms
 
-% Condiciones iniciales
-V(1) = -65; % Potencial de membrana inicial (mV)
-n(1) = alpha_n(V(1)) / (alpha_n(V(1)) + beta_n(V(1))); % Condición inicial para n
-m(1) = alpha_m(V(1)) / (alpha_m(V(1)) + beta_m(V(1))); % Condición inicial para m
-h(1) = alpha_h(V(1)) / (alpha_h(V(1)) + beta_h(V(1))); % Condición inicial para h
+    % Almacenamiento de resultados
+    V_trace = zeros(size(time));
+    m_trace = zeros(size(time));
+    h_trace = zeros(size(time));
+    n_trace = zeros(size(time));
 
-% Simulación del modelo Hodgkin-Huxley
-for i = 2:length(t)
-    % Cálculo de corrientes iónicas
-    I_Na = g_Na * m(i-1)^3 * h(i-1) * (V(i-1) - E_Na);
-    I_K = g_K * n(i-1)^4 * (V(i-1) - E_K);
-    I_L = g_L * (V(i-1) - E_L);
-    
-    % Ecuación diferencial para la evolución temporal del potencial de membrana
-    dVdt = (1 / C_m) * (I_Na + I_K + I_L);
-    
-    % Actualización de las variables de activación e inactivación
-    dn = alpha_n(V(i-1)) * (1 - n(i-1)) - beta_n(V(i-1)) * n(i-1);
-    dm = alpha_m(V(i-1)) * (1 - m(i-1)) - beta_m(V(i-1)) * m(i-1);
-    dh = alpha_h(V(i-1)) * (1 - h(i-1)) - beta_h(V(i-1)) * h(i-1);
-    
-    % Integración numérica
-    V(i) = V(i-1) + dt * dVdt;
-    n(i) = n(i-1) + dt * dn;
-    m(i) = m(i-1) + dt * dm;
-    h(i) = h(i-1) + dt * dh;
+    % Simulación
+    for i = 1:length(time)
+        % Corrientes iónicas
+        I_Na = g_Na * m^3 * h * (V - E_Na);
+        I_K = g_K * n^4 * (V - E_K);
+        I_L = g_L * (V - E_L);
+
+        % Ecuación diferencial del potencial de membrana
+        dVdt = (I_ext(i) - I_Na - I_K - I_L) / C_m;
+
+        % Actualización del potencial de membrana
+        V = V + dt * dVdt;
+
+        % Ecuaciones diferenciales de las variables de compuerta
+        dm = alpha_m(V) * (1 - m) - beta_m(V) * m;
+        dh = alpha_h(V) * (1 - h) - beta_h(V) * h;
+        dn = alpha_n(V) * (1 - n) - beta_n(V) * n;
+
+        % Actualización de las variables de compuerta
+        m = m + dt * dm;
+        h = h + dt * dh;
+        n = n + dt * dn;
+
+        % Almacenar los resultados
+        V_trace(i) = V;
+        m_trace(i) = m;
+        h_trace(i) = h;
+        n_trace(i) = n;
+    end
+
+    % Graficar los resultados
+    figure;
+    subplot(2,1,1);
+    plot(time, V_trace);
+    title('Potencial de membrana');
+    xlabel('Tiempo (ms)');
+    ylabel('V (mV)');
+
+    subplot(2,1,2);
+    plot(time, I_ext);
+    title('Corriente de estímulo');
+    xlabel('Tiempo (ms)');
+    ylabel('I_{ext} (\muA/cm^2)');
 end
 
-% Graficar el potencial de acción a lo largo del tiempo
-figure;
-plot(t, V, 'b');
-xlabel('Tiempo (ms)');
-ylabel('Potencial de Membrana (mV)');
-title('Potencial de Acción Hodgkin-Huxley');
-grid on;
+% Funciones auxiliares para las tasas de transición
+function val = alpha_m(V)
+    val = 0.1 * (V + 40) / (1 - exp(-(V + 40) / 10));
+end
+
+function val = beta_m(V)
+    val = 4 * exp(-(V + 65) / 18);
+end
+
+function val = alpha_h(V)
+    val = 0.07 * exp(-(V + 65) / 20);
+end
+
+function val = beta_h(V)
+    val = 1 / (1 + exp(-(V + 35) / 10));
+end
+
+function val = alpha_n(V)
+    val = 0.01 * (V + 55) / (1 - exp(-(V + 55) / 10));
+end
+
+function val = beta_n(V)
+    val = 0.125 * exp(-(V + 65) / 80);
+end
+
